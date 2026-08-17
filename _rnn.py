@@ -48,30 +48,3 @@ class CohesioNN(nn.Module):
         actor_logits = self.actor_head(last_hidden)
         type_logits = self.type_head(last_hidden)
         return actor_logits, type_logits
-
-
-class ShotOutcomeNN(nn.Module):
-    # xG-style model: same embedding+GRU backbone as CohesioNN, but a single
-    # sigmoid-ready output (goal or not) instead of two classification heads --
-    # the sequence here is k prior plays + the shot attempt itself, so the
-    # GRU's final hidden state already reflects the shot's own location,
-    # angle, distance, and situation by the time it reaches the head.
-    def __init__(self, embed_dims, vocab_sizes, num_continuous, rnn_hidden_size=64, dropout=0.2):
-        super().__init__()
-
-        self.embedding = HagelEmbedding(embed_dims, vocab_sizes)
-
-        input_size = sum(
-            dim * (6 if name == "playerName" else 1) for name, dim in embed_dims.items()
-        ) + num_continuous
-
-        self.rnn = nn.GRU(input_size=input_size, hidden_size=rnn_hidden_size, batch_first=True)
-        self.dropout = nn.Dropout(dropout)
-        self.output_head = nn.Linear(rnn_hidden_size, 1)
-
-    def forward(self, batch):
-        x = self.embedding(batch)               # (B, K, input_size)
-        _, hidden = self.rnn(x)                  # hidden: (1, B, rnn_hidden_size)
-        last_hidden = self.dropout(hidden[-1])   # (B, rnn_hidden_size)
-        logit = self.output_head(last_hidden).squeeze(-1)  # (B,) -- raw logit, not yet a probability
-        return logit
