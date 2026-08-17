@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+.claude/
+
+# Data caches -- regenerate with `python _dataImporter.py`
+*.csv
